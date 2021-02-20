@@ -1,1 +1,23 @@
 Meeting with Tanveer
+
+Fluxing vectors project
+
+Want to derive
+- petal to petal variation
+- variation in time (by exposure)
+- variation across the focal plane (other than explicitly by petal)
+
+Want a data structure PER exposure with a bunch of spectra and
+- focal plane x,y
+- petal number
+- MJD or TAI of exposure
+- seeing (PSF)
+- airmass
+- exposure time, etc. 
+- model stellar spectrum
+- observed spectrum
+- any relevant atmospheric or weather information
+- anything else the answer could depend on.
+
+- https://desidatamodel.readthedocs.io/en/latest/DESI_SPECTRO_CALIB/fluxcalib-CAMERA.html
+
