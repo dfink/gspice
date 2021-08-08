@@ -2,6 +2,7 @@ import numpy as np
 import sys
 from scipy import linalg
 from scipy.linalg import lapack
+from scipy import ndimage
 from time import time as systime  # IDL function is "systime()"
 
 
@@ -244,9 +245,6 @@ def submatrix_inv_mult(M, Minv, imask, Y, MinvY, irange=1, pad=True, bruteforce=
     Qt   = (Minv[r,:])[:, k]   # This line takes most of the time ?!?!?
 
 
-    #print('MinvY', MinvY.shape)
-    #print('Qt', Qt.shape)
-    #print('UinvQtY', UinvQtY.shape)
     if pad:
         AinvY0 = np.copy(MinvY)
         AinvY0[k, :] -= np.dot(Qt.T,UinvQtY+Yr)
@@ -258,7 +256,6 @@ def submatrix_inv_mult(M, Minv, imask, Y, MinvY, irange=1, pad=True, bruteforce=
     return AinvY
 
 
-#===================================================
 
 
 
@@ -267,7 +264,7 @@ def gaussian_estimate(wavekeep, wavemask, cov, Dvec, covinv, kstar=False, brutef
 # -------- wavemask is 1 for pixels to be predicted
 # --------   conditional on the reference pixels specified by wavekeep
 
-# -------- get index lists forxs reference (k) and interpolation inds
+# -------- get index lists for reference (k) and interpolation inds
 #          (kstar), following notation of RW Chapter 2 ~ Eq. 2.38
 
     single = len(Dvec.shape) == 1
