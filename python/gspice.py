@@ -263,14 +263,15 @@ def submatrix_inv_mult(M, Minv, imask, Y, MinvY, irange=1, pad=True, bruteforce=
 
 
 
-def gaussian_estimate(wavekeep, wavemask, cov, Dvec, covinv, kstar=False, bruteforce=False, nomult=False):
+def gaussian_estimate(wavekeep, wavemask, cov, Dvec, covinv, bruteforce=False, nomult=False):
 # -------- wavemask is 1 for pixels to be predicted
 # --------   conditional on the reference pixels specified by wavekeep
+# --------   some pixels may not be in either list, e.g. the guard window.
 
-# -------- get index lists forxs reference (k) and interpolation inds
+# -------- get index lists for reference (k) and interpolation inds
 #          (kstar), following notation of RW Chapter 2 ~ Eq. 2.38
 
-    single = len(Dvec.shape) == 1
+    single = len(Dvec.shape) == 1          # true if you only operate on 1 spectrum
     sz     = Dvec.shape
 
     k      = np.array(wavekeep) == 1       # where you have data
@@ -278,11 +279,10 @@ def gaussian_estimate(wavekeep, wavemask, cov, Dvec, covinv, kstar=False, brutef
     kstar  = np.array(wavemask) == 1       # where you want to interpolate
     nkstar = np.sum(kstar)
 
-
-
-    if bruteforce:   # use old code
+ 
+    if bruteforce:   # use only for testing
         cov_kk         = (cov[k, :])[:, k]
-        cov_kkstar     = (cov[kstar, :])[:, k] #  dim [nk, nkstar] ????
+        cov_kkstar     = (cov[kstar, :])[:, k]  #  [nkstar, nk]
         cov_kstark     = (cov[k, :])[:, kstar]
         cov_kstarkstar = (cov[kstar, :])[:, kstar]
         print(cov_kk)
@@ -296,9 +296,10 @@ def gaussian_estimate(wavekeep, wavemask, cov, Dvec, covinv, kstar=False, brutef
         print(cov_kkstar)
         print(icov_kk)
         print(cov_kstark)
+
         predcovar = cov_kstarkstar - (cov_kkstar.dot(np.dot(icov_kk,cov_kstark)))
 
-        if single:       # multiple parts 2 and 3 first
+        if single:       # only input one spectrum, multiply parts 2 and 3 first
             predkstar = cov_kkstar.dot(np.dot(icov_kk, Dvec[k].T))
         else:
 
@@ -307,32 +308,35 @@ def gaussian_estimate(wavekeep, wavemask, cov, Dvec, covinv, kstar=False, brutef
             temp    = cov_kkstar.dot(icov_kk)
             icov_kk = 0
         
-            if nkstar == 1:
-                temp2     = np.zeros(sz[0])
-                temp2[k]  = temp
-                predkstar = Dvec.dot(temp2.T)
-            else:
+            if nkstar == 1:    # this code predicts 1 value (pixel kstar) for many spectra
+                temp2     = np.zeros(sz[-1])
+                temp2[k]  = temp.reshape(nk)
+                predkstar = (Dvec.dot(temp2.T)).reshape(1,sz[0])
+            else:              # this code predicts many values for many spectra, and might be slow
                 predkstar = Dvec[k, :].dot(temp.T) # this takes memory ## Maybe not in Python?
                 print('Using memory intensive code....')
+        return predkstar, predcovar
 
-
-    else:             # -------- GSPICE version
+    else:             # This is the fast version (not bruteforce)
 
         cov_kkstar     = (cov[kstar, :])[:, k]   #  [nkstar, nk]
         cov_kstark     = (cov[k, :])[:, kstar]
         cov_kstarkstar = (cov[kstar, :])[:, kstar]
 
 # -------- compute icov_kk times cov_kstark using GSPICE routine
+#          then we will multiply by Dvec times that transpose
      # could set Minvy for a slight speedup
         Y = cov[:, kstar]
         Minvy = covinv.dot(Y)
-
 
         Ainvy0 = submatrix_inv_mult(cov, covinv, wavekeep, Y, Minvy)
                                 # Ainvy is icov_kk ## cov_kstark
                                 # Ainvy0 is that zero padded
 
-        predkstar = Dvec.dot(Ainvy0)  # this takes all the time. 
+        if nomult:
+            predkstar = -1
+        else:
+            predkstar = Dvec.dot(Ainvy0)  # this takes all the time. 
         predoverD = Ainvy0
 
 # -------- compute the prediction covariance (See RW, Chap. 2)
@@ -346,7 +350,7 @@ def gaussian_estimate(wavekeep, wavemask, cov, Dvec, covinv, kstar=False, brutef
 
 
 # Loop over pixels, do pixelwise prediction
-def pixelwise_estimate(Dvec, cov, range=False, nguard=20):
+def pixelwise_estimate(Dvec, cov, irange=None, nguard=20):
     """
     Pixelwise Gaussian Conditional Estimation
     
@@ -354,7 +358,7 @@ def pixelwise_estimate(Dvec, cov, range=False, nguard=20):
     ----------
     Dvec : flux matrix
     cov : covariance matrix 
-    rang : 
+    irange : range of spectral pixels to evaluate (default all)
     nguard : size of guard window
     
     Returns
@@ -379,9 +383,9 @@ def pixelwise_estimate(Dvec, cov, range=False, nguard=20):
         sys.exit()
 
     # range of pixels to estimate
-    if range:
-        i0 = range[0]
-        i1 = range[1]+1  # more Pythonic this way
+    if irange:
+        i0 = irange[0]
+        i1 = irange[1]+1  # more Pythonic this way
     else:
         i0 = 0
         i1 = npix
@@ -416,8 +420,7 @@ def pixelwise_estimate(Dvec, cov, range=False, nguard=20):
         kstar      = i
 
         predoverD[:, kstar-i0] = predoverD0[:,0]
-#        j = np.arange(predcovar.shape[0])
-        predvar[:, kstar-i0] = predcovar[0, 0]
+        predvar[:, kstar-i0]   = predcovar[0, 0]
 
         #print(i, systime()-t0)
 
