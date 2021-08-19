@@ -369,7 +369,7 @@ def pixelwise_estimate(Dvec, cov, irange=None, nguard=20):
     sz    = Dvec.shape
     npix  = sz[1]
     nspec = sz[0]
-    print('pixelwise_estimate:  npix, nspec=', npix, nspec)
+    print('pixelwise_estimate:  npix:%6d, nspec:%8d' % (npix, nspec))
     
     if (Ndim[0] != Ndim[1]):
         print('cov must be a square matrix', file=sys.stderr)
@@ -380,12 +380,12 @@ def pixelwise_estimate(Dvec, cov, irange=None, nguard=20):
         sys.exit()
 
     # range of pixels to estimate
-    if irange:
-        i0 = irange[0]
-        i1 = irange[1]+1  # more Pythonic this way
-    else:
+    if irange is None:
         i0 = 0
         i1 = npix
+    else:
+        i0 = irange[0]
+        i1 = irange[1]+1  # make index Pythonic
 
     # allocate output arrays
     szpred = i1-i0
@@ -419,12 +419,13 @@ def pixelwise_estimate(Dvec, cov, irange=None, nguard=20):
         predoverD[:, kstar-i0] = predoverD0[:,0]
         predvar[:, kstar-i0]   = predcovar[0, 0]
 
-        #print(i, systime()-t0)
+        if (i % 10) == 0:
+            print(" %5.0f %12.3f " % (i,systime()-t0))
 
     # do the matrix multiplication by Dvec all in one step for efficiency
     pred = np.dot(Dvec, predoverD)
 
-    print('Matrix mult:', systime()-t0)
+    print("Matrix mult:%12.3f" % (systime()-t0))
 
     return pred, predvar
 
