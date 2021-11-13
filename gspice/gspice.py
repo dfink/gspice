@@ -1,4 +1,4 @@
-from python.matrixUtils import cholesky_inv, submatrix_inv_mult
+from gspice.matrixUtils import cholesky_inv, submatrix_inv_mult
 import numpy as np 
 
 def gaussian_estimate(icond, ipred, cov, spec, covinv, bruteforce = False):

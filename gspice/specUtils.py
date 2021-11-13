@@ -1,7 +1,7 @@
 import numpy as np
 
 from pydl.pydlutils.image import djs_maskinterp
-from python.gspice import gp_interp
+from gspice.gspice import gp_interp
 
 def standard_scale(flux, ivar, mask = None):
     """
