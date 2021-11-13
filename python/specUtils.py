@@ -1,6 +1,8 @@
 import numpy as np
 
 from pydl.pydlutils.image import djs_maskinterp
+from python.gspice import gp_interp
+
 def standard_scale(flux, ivar, mask = None):
     """
     Scale input data to have uniform variance per spectrum 
@@ -20,7 +22,7 @@ def standard_scale(flux, ivar, mask = None):
         pixmask = ivar == 0
 
     #interpolate over masked pixels in the spectral direction
-    spec = djs_maskinterp(yval = flux, mask = pixmask, axis = 1, const = ).astype(np.float64) #dependent on pydl ##/const?
+    spec = djs_maskinterp(yval = flux, mask = pixmask, axis = 1)#, const = ).astype(np.float64) #dependent on pydl ##/const??
 
     ##--FIGURE OUT WHAT wt IS AND THE LOOP
 
@@ -84,7 +86,7 @@ def get_chimask (flux, ivar, mask, nsigma): ##DONE
     cov = covar(spec)[0] #cov is element 0 of this function
 
     #compute GSPICE predicted mean and covariance
-    pred, predvar = gspice_gp_interp(spec, cov)
+    pred, predvar = gp_interp(spec, cov)
 
     #compute z-score 
     chi = (spec - pred)/np.sqrt(predvar)
@@ -130,7 +132,7 @@ def covar_iter_mask(flux, ivar, mask, nsigma = np.array([20, 8, 6]), maxbadpix =
     for sigma in nsigma: #loop over iteratively masking
         print(f"Pass nsigma = {sigma}")
         thismask = np.logical_or(chimask, (mask[wmask] != 0))
-        chimask = get_chimask(flux = flux[wmask], ivar = ivar[wmask], thismask, 
+        chimask = get_chimask(flux = flux[wmask], ivar = ivar[wmask], mask = thismask, 
                             nsigma = sigma)
         print(f"Mean chimask = {np.mean(chimask)}")
         print(f"Time: {time()- t0} seconds.")
