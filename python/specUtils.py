@@ -1,5 +1,4 @@
 import numpy as np
-from numpy import ma
 
 from pydl.pydlutils.image import djs_maskinterp
 def standard_scale(flux, ivar, mask = None):
@@ -13,7 +12,7 @@ def standard_scale(flux, ivar, mask = None):
                                0 == good, default is ivar == 0
 
         Returns:
-            Dvec (np.ndarray): scaled flux array (npsec, npix)
+            spec (np.ndarray): scaled flux array (npsec, npix)
     """
 
     #if no mask is passed, use ivar == 0 as mask (setting infinity error as bad pixel)
@@ -21,18 +20,18 @@ def standard_scale(flux, ivar, mask = None):
         pixmask = ivar == 0
 
     #interpolate over masked pixels in the spectral direction
-    Dvec = djs_maskinterp(yval = flux, mask = pixmask, axis = 1, const = ).astype(np.float64) #dependent on pydl ##/const?
+    spec = djs_maskinterp(yval = flux, mask = pixmask, axis = 1, const = ).astype(np.float64) #dependent on pydl ##/const?
 
     ##--FIGURE OUT WHAT wt IS AND THE LOOP
 
     #renormalize each spectra by sqrt(mean(ivar))
-    wt = 1 - pixmask ?? ##is this setting the opposite? why define weight this way??
+    wt = 1 - pixmask # set weight such that only good pixels contribute
     meanivar = np.sum(ivar * wt, axis = 1)/np.sum(wt, axis = 1)
     refscale = np.sqrt(meanivar)
 
-    Dvec *= refscale[:, np.newaxis] #rescale data as roughly data/sigma
+    spec *= refscale[:, np.newaxis] #rescale data as roughly data/sigma
 
-    return Dvec
+    return spec
 
 def covar(spec, checkmean = None): ##DONE
     """
@@ -65,8 +64,8 @@ def covar(spec, checkmean = None): ##DONE
 
     return cov, refmean 
 
-from scipy.ndimage import binary_dilation as dilate ??
-def chimask (flux, ivar, mask, nsigma): ##DONE
+from scipy.ndimage import binary_dilation as dilate
+def get_chimask (flux, ivar, mask, nsigma): ##DONE
     """
     Compute mask of outliers with respect to GSPICE posterior covariance.
     
@@ -79,20 +78,20 @@ def chimask (flux, ivar, mask, nsigma): ##DONE
     """
     
     #interporlate over masked pixels in the spectral direction
-    Dvec = standard_scale(flux, ivar, mask)
+    spec = standard_scale(flux, ivar, mask)
 
     #obtain empirical covariance for this data array
-    cov = covar(Dvec)[0] #cov is element 0 of this function
+    cov = covar(spec)[0] #cov is element 0 of this function
 
     #compute GSPICE predicted mean and covariance
-    pred, predvar = gspice_gp_interp(Dvec, cov)
+    pred, predvar = gspice_gp_interp(spec, cov)
 
     #compute z-score 
-    chi = (Dvec - pred)/np.sqrt(predvar)
+    chi = (spec - pred)/np.sqrt(predvar)
 
     #clip at nsigma, dilate mask by 1 pixel
     flag = np.abs(chi) >= nsigma
-    chimask = dilate(flag, [1, 1, 1]).astype(flag.dtype) ??
+    chimask = dilate(flag, [1, 1, 1]).astype(flag.dtype)
     
     return chimask 
 
@@ -127,21 +126,20 @@ def covar_iter_mask(flux, ivar, mask, nsigma = np.array([20, 8, 6]), maxbadpix =
 
     assert nmask <= npix, "Not enough good spectra"
 
-    #chimask = np.zeros(mask.shape)
-
+    chimask = np.zeros(mask[wmask].shape)
     for sigma in nsigma: #loop over iteratively masking
         print(f"Pass nsigma = {sigma}")
-        thismask = mask[wmask] != 0 ?? #isnt or going to set most liberal defn?
-        chimask = chimask(flux = flux[wmask], ivar = ivar[wmask], thismask, 
+        thismask = np.logical_or(chimask, (mask[wmask] != 0))
+        chimask = get_chimask(flux = flux[wmask], ivar = ivar[wmask], thismask, 
                             nsigma = sigma)
         print(f"Mean chimask = {np.mean(chimask)}")
         print(f"Time: {time()- t0} seconds.")
         t0 = time()
 
     finalmask = np.ones((nspec, npix))
-    finalmask[wmask] = chimask ??
+    finalmask[wmask] = np.logical_or(thismask, chimask)
 
-    Dvec = standard_scale(flux=flux[wmask], ivar= ivar[wmask], mask=finalmask[wmask])
-    cov, _ = covar(Dvec)
+    spec = standard_scale(flux=flux[wmask], ivar= ivar[wmask], mask=finalmask[wmask])
+    cov, _ = covar(spec)
 
     return cov, finalmask
