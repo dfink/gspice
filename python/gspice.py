@@ -1,5 +1,5 @@
 from python.matrixUtils import cholesky_inv, submatrix_inv_mult
-
+import numpy as np 
 
 def gaussian_estimate(icond, ipred, cov, spec, covinv, bruteforce = False):
     """
@@ -54,7 +54,7 @@ def gaussian_estimate(icond, ipred, cov, spec, covinv, bruteforce = False):
 
         #if nkstar == 1: ?? why is this necessary?
         #    tmp2 = np.zeros()
-        predkstar = spec[:, k] @ temp.T #this is memory intensive
+        predkstar = spec[:, k] @ tmp.T #this is memory intensive
         print("Using memory intensive code...")
 
         return predkstar, predcovar #?? return values are different. deprecate bruteforce?
@@ -77,7 +77,7 @@ def gaussian_estimate(icond, ipred, cov, spec, covinv, bruteforce = False):
         return predcovar, predoverD 
 
 from time import time
-def gp_interp(spec, cov, nguard = 20, nguard = 20, rang = None):
+def gp_interp(spec, cov, nguard = 20, rang = None):
     """
     Computes pixelwise conditional prediction for each pixel (GSPICE routine)
 
