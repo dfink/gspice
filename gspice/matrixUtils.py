@@ -1,3 +1,4 @@
+import numpy as np
 from scipy import linalg
 from scipy.linalg import lapack
 from copy import deepcopy

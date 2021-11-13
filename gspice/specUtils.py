@@ -1,6 +1,5 @@
 import numpy as np
-
-from pydl.pydlutils.image import djs_maskinterp
+from gspice.djs_maskinterp import maskinterp as djs_maskinterp
 from gspice.gspice import gp_interp
 
 def standard_scale(flux, ivar, mask = None):
@@ -23,8 +22,6 @@ def standard_scale(flux, ivar, mask = None):
 
     #interpolate over masked pixels in the spectral direction
     spec = djs_maskinterp(yval = flux, mask = pixmask, axis = 1)#, const = ).astype(np.float64) #dependent on pydl ##/const??
-
-    ##--FIGURE OUT WHAT wt IS AND THE LOOP
 
     #renormalize each spectra by sqrt(mean(ivar))
     wt = 1 - pixmask # set weight such that only good pixels contribute
