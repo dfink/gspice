@@ -88,7 +88,7 @@ pro gspice_gp_interp, Dvec, cov, pred, predvar, range=range, nguard=nguard, brut
      endif else begin 
         gspice_gaussian_estimate, icond, ipred, cov, Dvec, predkstar, predcovar, covinv=covinv, kstar=kstar, bruteforce=bruteforce, predoverD=predoverD0
      endelse 
-
+; bruteforce = true fails here
      predoverD[kstar-i0, *] = predoverD0
      j = lindgen((size(predcovar, /dimen))[0])
      predvar[kstar-i0, *] = predcovar[j, j] # ones

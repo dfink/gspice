@@ -17,6 +17,7 @@
 ;   
 ; KEYWORDS:
 ;   refscale - factor each spectrum was multiplied by (nspec)
+;   refmean  - mean of each rescaled wavelength bin (npix)
 ;   
 ; OUTPUTS:
 ;   Dvec     - scaled flux array (npix, nspec)
@@ -34,7 +35,7 @@
 ;   2021-Oct-21 - Written by Douglas Finkbeiner, CfA
 ;
 ;----------------------------------------------------------------------
-function gspice_standard_scale, flux, ivar, mask, refscale=refscale
+function gspice_standard_scale, flux, ivar, mask, refscale=refscale, refmean=refmean
 
 ; -------- if no mask is passed, use ivar=0 as mask
   pixmask = keyword_set(mask) ? mask NE 0 : ivar EQ 0
@@ -49,6 +50,12 @@ function gspice_standard_scale, flux, ivar, mask, refscale=refscale
   
   for i=0L, n_elements(meanivar)-1 do $
      Dvec[*, i] *= refscale[i] ; roughly data/sigma
+
+  sz    = size(Dvec, /dimen)
+  npix  = sz[0]
+  nspec = sz[1]
+  refmean = total(Dvec, 2)/nspec
+  for i=0L, npix-1 do Dvec[i, *] -= refmean[i]
 
   return, Dvec
 end
