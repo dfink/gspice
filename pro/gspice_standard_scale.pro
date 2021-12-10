@@ -41,7 +41,7 @@ function gspice_standard_scale, flux, ivar, mask, refscale=refscale, refmean=ref
   pixmask = keyword_set(mask) ? mask NE 0 : ivar EQ 0
 
 ; -------- interpolate over masked pixels in the spectral direction
-  Dvec = double(djs_maskinterp(flux, pixmask, iaxis=0, /const))
+  Dvec = djs_maskinterp(double(flux), pixmask, iaxis=0, /const)
 
 ; -------- renormalize each spectrum by sqrt(mean ivar)
   wt = 1-pixmask
