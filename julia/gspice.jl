@@ -53,9 +53,10 @@ function djs_maskinterp1(yval, mask, extrap_scheme; xval=nothing)
     igood = findall(mask .==0)
     ngood = length(igood)
     ny    = length(yval)
-    if ngood == ny return yval end   # if all good
-    if ngood == 0 return yval end    # if none good
-    if ngood == 1 return yval end    # if only one is good (IDL behavior)
+    ynew  = copy(yval)
+    if ngood == ny return ynew end   # if all good
+    if ngood == 0 return ynew end    # if none good
+    if ngood == 1 return ynew end    # if only one is good (IDL behavior)
 
 # this is Python djs_maskinterp behavior:
 #    if ngood == 1
@@ -63,7 +64,6 @@ function djs_maskinterp1(yval, mask, extrap_scheme; xval=nothing)
 #        return fill(yval[igood[1]], ny)
 #    end
 
-    ynew = copy(yval)
 
     if isnothing(xval)
         ibad  = findall(mask .!= 0)
@@ -137,12 +137,12 @@ function djs_maskinterp(yval, mask; xval=nothing, axis=nothing, constant=false)
                 end
             else
                 if axis == 0
-                    for i in 1:sz[1]
+                    @views for i in 1:sz[1]
                         ynew[i, :] = djs_maskinterp1(yval[i, :], mask[i, :], ext_scheme,
                                                      xval=xval[i, :])
                     end
                 else
-                    for i in 1:sz[2]
+                    @views for i in 1:sz[2]
                         ynew[:, i] = djs_maskinterp1(yval[:, i], mask[:, i], ext_scheme,
                                                      xval=xval[:, i])
                     end
@@ -155,7 +155,7 @@ end
 
 
 """
-    gspice_standard_scale(flux, ivar, mask=nothing, refscale=nothing)
+    gspice_standard_scale(flux, ivar, mask=nothing) -> Dvec, refscale, refmean
 Standard scale the data after interpolation over a mask
 
 # Arguments:
@@ -164,20 +164,22 @@ Standard scale the data after interpolation over a mask
 
 # Keywords:
 - `mask`:      mask
-- `refscale`:      refscale
 
 # Output:
 - `Dvec`:
+- `refscale`:  factor each spectrum was multiplied by (nspec)
+- `refmean`:   mean of each rescaled wavelength bin (npix)
+
 
 # Comments:
 2021-Oct-21 - Written by Douglas Finkbeiner, CfA
 """
-function gspice_standard_scale(flux, ivar, mask=nothing, refscale=nothing)
+function gspice_standard_scale(flux::Matrix{Float64}, ivar::Matrix{Float64}, mask=nothing)
     # -------- if no mask is passed, use ivar=0 as mask
     pixmask = isnothing(mask) ? ivar .== 0 : mask .!= 0
 
     # -------- interpolate over masked pixels in the spectral direction
-    Dvec = djs_maskinterp(Float64.(flux), pixmask; axis=0, constant=true)
+    Dvec = djs_maskinterp(flux, pixmask; axis=0, constant=true)
 
     # -------- renormalize each spectrum by sqrt(mean ivar)
     wt = .~pixmask
@@ -185,7 +187,11 @@ function gspice_standard_scale(flux, ivar, mask=nothing, refscale=nothing)
     refscale = sqrt.(meanivar)
     Dvec .*= refscale
 
-    return Dvec
+    Nspec, Npix = size(Dvec)
+    refmean = sum(Dvec, dims=1) ./ Nspec
+    Dvec = Dvec .- refmean
+
+    return Dvec, refscale, refmean
 end
 
 
@@ -213,16 +219,16 @@ function gspice_covar(spec::Array{Float64,2}; checkmean=false)
 
     # -------- make columns of spec array mean zero for computation of covariance
     refmean = sum(spec, dims=1) ./ Nspec
-    spec .-= refmean
+    spec0 = spec .- refmean
 
     # -------- verify mean subtraction worked
     if checkmean
-        mnd = sum(spec, dims=1) ./ Nspec
+        mnd = sum(spec0, dims=1) ./ Nspec
         println("Min, max, mean ", extrema(mnd), std(mnd))
     end
 
     # -------- compute covariance
-    cov = (spec'*spec)./(Nspec-1)
+    cov = (spec0'*spec0)./(Nspec-1)
 
     return cov, refmean
 end
@@ -576,10 +582,10 @@ Compute mask of outliers with respect to GSPICE posterior variance
 function gspice_chimask(flux, ivar, mask, nsigma)
 
     # -------- interpolate masked pixels in the spectral direction, scale
-    Dvec = gspice_standard_scale(flux, ivar, mask)
+    Dvec, refscale, refmean = gspice_standard_scale(flux, ivar, mask)
 
     # -------- obtain the empirical covariance for this Dvec
-    covmat, refmean = gspice_covar(Dvec)
+    covmat, __ = gspice_covar(Dvec)
 
     # -------- compute GSPICE predicted mean and variance
     pred, predvar = gspice_gp_interp(Dvec, covmat, nguard=20)
@@ -624,7 +630,7 @@ function gspice_covar_iter_mask(flux, ivar, mask; nsigma=[20, 8, 6], maxbadpix=6
 
     # -------- reject spectra with too many bad pixels
     nbadpix = sum(mask .!= 0, dims=2)[:,1]     # bad pixels for each spectrum
-    objmask = nbadpix .< maxbadpix    # 0=bad (too many pixels masked)
+    objmask = nbadpix .<= maxbadpix    # 0=bad (too many pixels masked)
     wmask,nmask = where(objmask)   # index list of spectra to use
 
     if nmask < npix throw("Not enough good spectra!") end
@@ -642,8 +648,8 @@ function gspice_covar_iter_mask(flux, ivar, mask; nsigma=[20, 8, 6], maxbadpix=6
   finalmask = trues(nspec, npix)    # start from original mask, overwrite mask for good spectra
   finalmask[wmask,:] = thismask .| chimask
 
-  Dvec = gspice_standard_scale(flux[wmask,:], ivar[wmask,:], finalmask[wmask,:])
-  covmat, refmean = gspice_covar(Dvec)
+  Dvec, refscale, refmean = gspice_standard_scale(flux[wmask,:], ivar[wmask,:], finalmask[wmask,:])
+  covmat, __ = gspice_covar(Dvec)
 
   return covmat, finalmask
 end
