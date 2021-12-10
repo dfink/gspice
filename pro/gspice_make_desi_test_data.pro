@@ -1,9 +1,11 @@
 pro gspice_make_desi_test_data
 
-  a = mrdfits('~/gspice/test/star-sample.fits.gz', 1, /silent)
-  spec = a.spec
-  ivar = a.ivar
+  print, 'Reading inputs...'
+  a = mrdfits('./test/star-sample.fits.gz', 1)
+  spec = double(a.spec)
+  ivar = double(a.ivar)
   mask = a.mask
+
   res = gspice_covar_iter_mask(spec, ivar, mask, nsigma=[20,8,6], maxbadpix=64)
 ; 37 sec
 
