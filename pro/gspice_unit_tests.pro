@@ -1,3 +1,23 @@
+;+
+; NAME:
+;   gspice_unit_tests
+;
+; PURPOSE:
+;   Unit tests
+;
+; CALLING SEQUENCE:
+;   gspice_unit_tests
+;
+; OUTPUTS:
+;   Will crash if a test fails. 
+;
+; COMMENTS:
+;   Parallel to gspice_unit_tests.jl
+;
+; REVISION HISTORY:
+;   2021-Dec-10 - Written by Douglas Finkbeiner, CfA
+;
+;----------------------------------------------------------------------
 pro gspice_unit_tests
 
   print, 'Reading inputs...'
@@ -97,7 +117,7 @@ pro gspice_unit_tests
   
   gspice_gaussian_estimate, icond, ipred, covmat, Dvec, predkstar, predcovar, covinv=covinv, kstar=kstar, predoverD=predoverD0
   
-  print, "gspice_gaussian_estimate(): std(predoverD0)",stdev(predoverD0)
+;  print, "gspice_gaussian_estimate(): std(predoverD0)",stdev(predoverD0)
   predkstar = matrixmult(Dvec, predoverD0)
   
   diff = (stdev(predkstar)/18.40340978594223d)-1
