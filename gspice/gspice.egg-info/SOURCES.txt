@@ -1,0 +1,7 @@
+README.md
+setup.py
+python/gspice.egg-info/PKG-INFO
+python/gspice.egg-info/SOURCES.txt
+python/gspice.egg-info/dependency_links.txt
+python/gspice.egg-info/requires.txt
+python/gspice.egg-info/top_level.txt
