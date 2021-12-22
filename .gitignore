@@ -8,3 +8,4 @@ gspice/__pycache__/specUtils.cpython-37.pyc
 gspice/__pycache__/matrixUtils.cpython-37.pyc
 .gitignore
 gspice/__pycache__/matrixUtils.cpython-37.pyc
+test/gspice-unit-test-desi.fits
