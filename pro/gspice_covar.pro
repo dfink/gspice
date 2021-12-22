@@ -39,16 +39,17 @@ function gspice_covar, spec, checkmean=checkmean
 
 ; -------- make columns of Dmask mean zero for computation of covariance
   refmean = total(spec, 2)/nspec
-  for i=0L, npix-1 do spec[i, *] -= refmean[i]
+  spec0   = spec  ; make a copy of spec
+  for i=0L, npix-1 do spec0[i, *] -= refmean[i]
 
 ; -------- verify mean subtraction worked
   if keyword_set(checkmean) then begin 
-     mnd = total(spec, 2)/nspec
+     mnd = total(spec0, 2)/nspec
      print, 'Minmax mean data', minmax(mnd), stdev(mnd)
   endif 
 
 ; -------- compute covariance
-  cov = matrixmultata(spec)/(nspec-1) ; computes A' times A for intput A
+  cov = matrixmultata(spec0)/(nspec-1) ; computes A' times A for intput A
 
   return, list(cov, refmean)
 end

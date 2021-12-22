@@ -64,7 +64,7 @@ function gspice_covar_iter_mask, flux, ivar, mask, nsigma=nsigma, $
   finalmask = bytarr(npix, nspec)+1B    ; start from original mask, overwrite mask for good spectra
   finalmask[*, wmask] = thismask OR chimask
 
-  Dvec = gspice_standard_scale(flux[*, wmask], ivar[*, wmask], finalmask[*, wmask])
+  Dvec = gspice_standard_scale(flux[*, wmask], ivar[*, wmask], finalmask[*, wmask], refscale=refscale, refmean=refmean)
   cov = (gspice_covar(Dvec))[0]         ; cov is element 0 of returned list
 
   return, list(cov, finalmask)

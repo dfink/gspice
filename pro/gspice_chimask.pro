@@ -54,8 +54,12 @@ function gspice_chimask, flux, ivar, mask, nsigma=nsigma, gspice=gspice
   chi = (Dvec-pred)/sqrt(predvar)
 
 ; -------- clip at nsigma, dilate the mask by 1 pixel
-  chimask = dilate(abs(chi) GE nsigma, [1, 1, 1])
+  nspec = (size(flux, /dim))[1]
+  pad = bytarr(1, nspec)
+  chim = [pad, abs(chi) GT nsigma, pad]
+ 
+  chimask = chim OR shift(chim, 1, 0) OR shift(chim, -1, 0)
 
-  return, chimask
+  return, chimask[1:-2, *]
 end
 
