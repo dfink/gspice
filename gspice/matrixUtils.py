@@ -68,9 +68,9 @@ def submatrix_inv(M, Minv, imask, bruteforce = False):
 
     #Evaluate  A^{-1} = P - Q U^{-1} Q.T
     Uinv = linalg.inv(Minv[np.ix_(r, r)])
-    Q = Minv[np.ix_(k, r)]
-    #Q = Qt.T
-    Ainv = Minv[np.ix_(k, k)] - Q @ Uinv @ Q.T 
+    Qt = Minv[np.ix_(r, k)] #faster than Q assuming nr < nk
+    #Q = Minv[np.ix_(k, r)]
+    Ainv = Minv[np.ix_(k, k)] - Qt.T @ Uinv @ Qt 
 
     return Ainv
 
@@ -117,15 +117,18 @@ def submatrix_inv_mult(M, Minv, imask, Y, MinvY, pad = True, bruteforce = False)
     assert Y.ndim == 2, "Y must be column vector."
     assert MinvY.ndim == 2, "MinvY must be column vector."
 
-    #rows/columns to keep (k) and remove (r)
-    k = np.where(imask.any(axis = 1))[0] #?? assume imask symmetric
-    nk = len(k)
+    #ensure imask is boolean type because will use logical operators
+    imask = imask.astype(bool)
 
-    r = np.where(~imask.any(axis = 1))[0] #must convert to bool since ~ is bitwise complement
+    #rows/columns to keep (k) and remove (r)
+    k = np.where(imask)[0] 
+    #nk = len(k)
+
+    r = np.where(~imask)[0] 
     nr = len(r)
 
     if bruteforce:
-        A = (M[k,:])[:,k]
+        A = M[np.ix_(k, k)]
         Ainv = cholesky_inv(A)
         Ainvy = Ainv.T @ Y[k,:]
         return Ainvy
@@ -135,10 +138,10 @@ def submatrix_inv_mult(M, Minv, imask, Y, MinvY, pad = True, bruteforce = False)
         return MinvY
 
     #Use Q.T y = Minv y - U y ?? why? known result?
-    U    = (Minv[r,:])[:, r]
+    U    = Minv[np.ix_(r, r)]
     Yr   = Y[r, :]
-    Qty  = MinvY[r, :] - np.dot(U, Yr)
-    Qt = (Minv[r,:])[:,k]
+    Qty  = MinvY[r, :] - U @ Yr
+    Qt = Minv[np.ix_(r, k)]
 
     #evaluate A^{-1} Y = P Y - Q U^{-1} Q.T Y
 
@@ -146,8 +149,9 @@ def submatrix_inv_mult(M, Minv, imask, Y, MinvY, pad = True, bruteforce = False)
     if(U.shape[0] == 1):
         UinvQtY = Qty/U[0]
     else:
-        L = linalg.cho_factor(U, lower = False, check_finite = False)
-        UinvQtY = linalg.cho_solve(L, Qty, overwrite_b = False)
+        #L = linalg.cho_factor(U, lower = False, check_finite = False)
+        #UinvQtY = linalg.cho_solve(L, Qty, overwrite_b = False)
+        UinvQtY = cholesky_inv(U)/Qty
 
     #Evaluate A^{-1} Y = P Y - Q U^{-1} Q^T Y
     #using P Y = Minv Y - Q Y
@@ -158,5 +162,6 @@ def submatrix_inv_mult(M, Minv, imask, Y, MinvY, pad = True, bruteforce = False)
         AinvY0[r, :] = 0
         return AinvY0
     else:
-        AinvY = MinvY[k,:] - ((UinvQtY + Yr).T @ Qt).T
+        #AinvY = MinvY[k,:] - ((UinvQtY + Yr).T @ Qt).T
+        AinvY = MinvY[k,:] - Qt.T @ (UinvQtY + Yr) #faster since fewer transpose
         return AinvY
