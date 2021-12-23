@@ -48,18 +48,17 @@ def submatrix_inv(M, Minv, imask, bruteforce = False):
     assert M.shape[0] == M.shape[1], "M must be a square matrix."
     assert imask.shape[0] == M.shape[0], "M and imask have incompatible dimensions."
 
-    #ensure imask is boolean type
-    imask = imask.astype(bool)
+    #ensure imask is boolean type because will use logical operators
+    imask = imask.astype(bool) 
 
     #rows/columns to keep (k) and remove (r)
-    k = np.where(imask.any(axis = 1))[0] #?? assume imask symmetric
-    nk = len(k)
+    k = np.where(imask)[0] 
 
-    r = np.where(~imask)[0] #must convert to bool since ~ is bitwise complement
+    r = np.where(~imask)[0] 
     nr = len(r)
 
     if bruteforce:
-        A = (M[k,:])[:,k]
+        A = M[np.ix_(k, k)]
         Ainv = cholesky_inv(A)
         return Ainv
     
@@ -68,10 +67,10 @@ def submatrix_inv(M, Minv, imask, bruteforce = False):
         return Minv
 
     #Evaluate  A^{-1} = P - Q U^{-1} Q.T
-    Uinv = linalg.inv((Minv[r,:])[:,r])
-    Qt = (Minv[r, :])[:, k]
-    Q = Qt.T
-    Ainv = (Minv[k,:])[:,k] - Q @ Uinv @ Qt #?? #order in idl?
+    Uinv = linalg.inv(Minv[np.ix_(r, r)])
+    Q = Minv[np.ix_(k, r)]
+    #Q = Qt.T
+    Ainv = Minv[np.ix_(k, k)] - Q @ Uinv @ Q.T 
 
     return Ainv
 
