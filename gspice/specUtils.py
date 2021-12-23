@@ -1,6 +1,6 @@
 import numpy as np
-from gspice.djs_maskinterp import maskinterp as djs_maskinterp
-from gspice.gspice import gp_interp
+from .djs_maskinterp import maskinterp as djs_maskinterp
+from .gspiceMain import gp_interp
 
 def standard_scale(flux, ivar, mask = None):
     """

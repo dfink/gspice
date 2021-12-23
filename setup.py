@@ -13,8 +13,8 @@ setup(
         author_email="<tanveer.karim@cfa.harvard.edu>",
         description=DESCRIPTION,
         long_description=LONG_DESCRIPTION,
-        packages=find_packages(where="gspice"),
-        install_requires=['numpy', 'scipy'], # add any additional packages that 
+        packages=["gspice"],
+        #install_requires=['numpy', 'scipy'], # add any additional packages that 
         # needs to be installed along with your package. Eg: 'caer'
         
         keywords=['gspice', 'gaussian process', 'spectral cleanup', 'astronomy'],
@@ -25,5 +25,5 @@ setup(
             "Operating System :: Ubuntu :: Ubuntu LT 16.04",
         ],
         package_dir={"gspice":"gspice"},
-        python_requires=">=3.6",
+        python_requires=">=3.7",
 )

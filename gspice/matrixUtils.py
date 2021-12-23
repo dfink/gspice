@@ -9,7 +9,7 @@ def cholesky_inv(M):
     """
 
     # Lower-triangular Cholesky factorization of M    
-    L = linalg.cholesky(M)
+    L = linalg.cholesky(M, lower = True)
 
     # Call LAPACK dpotri to get inverse (only lower triangle populated)    
     Minv0 = lapack.dpotri(L, lower=True)[0]
@@ -48,11 +48,14 @@ def submatrix_inv(M, Minv, imask, bruteforce = False):
     assert M.shape[0] == M.shape[1], "M must be a square matrix."
     assert imask.shape[0] == M.shape[0], "M and imask have incompatible dimensions."
 
+    #ensure imask is boolean type
+    imask = imask.astype(bool)
+
     #rows/columns to keep (k) and remove (r)
     k = np.where(imask.any(axis = 1))[0] #?? assume imask symmetric
     nk = len(k)
 
-    r = np.where(~imask.any(axis = 1))[0] #must convert to bool since ~ is bitwise complement
+    r = np.where(~imask)[0] #must convert to bool since ~ is bitwise complement
     nr = len(r)
 
     if bruteforce:

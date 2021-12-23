@@ -11,10 +11,10 @@ from time import time as systime  # IDL function is "systime()"
 def cholesky_inv(M):
 
     # Lower-triangular Cholesky factorization of M    
-    L = np.linalg.cholesky(M)
+    #L = np.linalg.cholesky(M)
 
     # Call LAPACK dpotri to get inverse (only lower triangle populated)    
-    Minv0 = lapack.dpotri(L, lower=True)[0]
+    Minv0 = lapack.dpotri(M, lower=True)[0]
 
     # Copy lower triangle to upper triangle    
     Minv = Minv0+Minv0.T-np.diag(Minv0.diagonal())
