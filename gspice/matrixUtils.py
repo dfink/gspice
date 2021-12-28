@@ -43,7 +43,7 @@ def submatrix_inv(M, Minv, imask, bruteforce = False):
 
             U and M must be invertible and positive semi-definite.
     """
-    
+    #print("reg " + str(bruteforce))
     #verify proper dimensionalities
     assert M.shape[0] == M.shape[1], "M must be a square matrix."
     assert imask.shape[0] == M.shape[0], "M and imask have incompatible dimensions."
@@ -84,7 +84,7 @@ def submatrix_inv_mult(M, Minv, imask, Y, MinvY, pad = True, bruteforce = False)
             Minv (np.ndarray) N x N: inverse of M
             imask (np.ndarray) N x N: mask of rows/columns to use 
                                       (1 == keep, 0 == remove); contains Nk ones and Nr zeros 
-            Y (np.ndarray) Nspec x N:  matrix multiply Ainv by; assumed to be zero-padded
+            Y (np.ndarray) N x Nspec:  matrix multiply Ainv by; assumed to be zero-padded
             MinvY (np.ndarray) N x Nspec:  matrix Minv * Y 
             pad (bool)        : flag for zero-padding
             bruteforce (bool) : flag for using bruteforce approach
@@ -110,7 +110,6 @@ def submatrix_inv_mult(M, Minv, imask, Y, MinvY, pad = True, bruteforce = False)
 
             Y is assumed to be zero-padded at bad rows    
     """
-
     #verify proper dimensionalities
     assert M.shape[0] == M.shape[1], "M must be a square matrix."
     assert imask.shape[0] == M.shape[0], "M and imask have incompatible dimensions."
@@ -119,7 +118,7 @@ def submatrix_inv_mult(M, Minv, imask, Y, MinvY, pad = True, bruteforce = False)
 
     #ensure imask is boolean type because will use logical operators
     imask = imask.astype(bool)
-
+    
     #rows/columns to keep (k) and remove (r)
     k = np.where(imask)[0] 
     #nk = len(k)
@@ -144,14 +143,13 @@ def submatrix_inv_mult(M, Minv, imask, Y, MinvY, pad = True, bruteforce = False)
     Qt = Minv[np.ix_(r, k)]
 
     #evaluate A^{-1} Y = P Y - Q U^{-1} Q.T Y
-
     #Faster for big U (and fast enough for small U)
     if(U.shape[0] == 1):
         UinvQtY = Qty/U[0]
     else:
         #L = linalg.cho_factor(U, lower = False, check_finite = False)
         #UinvQtY = linalg.cho_solve(L, Qty, overwrite_b = False)
-        UinvQtY = cholesky_inv(U)/Qty
+        UinvQtY = cholesky_inv(U) @ Qty
 
     #Evaluate A^{-1} Y = P Y - Q U^{-1} Q^T Y
     #using P Y = Minv Y - Q Y
