@@ -2,12 +2,12 @@ import numpy as np
 from .djs_maskinterp import maskinterp as djs_maskinterp
 from .gspiceMain import gp_interp
 
-def standard_scale(flux, ivar, mask = None):
+def standard_scale(spec, ivar, mask = None):
     """
     Scale input data to have uniform variance per spectrum 
 
         Parameters:
-            flux (np.ndarray): flux (nspec, npix)
+            spec (np.ndarray): spec (nspec, npix)
             ivar (np.ndarray): ivar (nspec, npix)
             mask (np.ndarray): mask (nspec, npix); 
                                0 == good, default is ivar == 0
@@ -20,19 +20,21 @@ def standard_scale(flux, ivar, mask = None):
     if mask is None:
         pixmask = (ivar == 0)
     else:
-        pixmask = mask
+        pixmask = np.where(mask == 0, 0, 1) #scale mask to 0 or 1
 
     #interpolate over masked pixels in the spectral direction
-    spec = djs_maskinterp(yval = flux, mask = pixmask, axis = 1)#, const = ).astype(np.float64) #dependent on pydl ##/const??
-
+    spec = djs_maskinterp(yval = spec, mask = pixmask, axis = 1)#, const = ).astype(np.float64) #dependent on pydl ##/const??
+    
     #renormalize each spectra by sqrt(mean(ivar))
-    wt = 1 - pixmask # set weight such that only good pixels contribute
+    wt = 1 - pixmask # set weight such that only good pixels contribute 
     meanivar = np.sum(ivar * wt, axis = 1)/np.sum(wt, axis = 1)
     refscale = np.sqrt(meanivar)
 
     spec *= refscale[:, np.newaxis] #rescale data as roughly data/sigma
+    refmean = spec.mean(axis = 0)
+    spec -= refmean.reshape(1, -1) 
 
-    return spec
+    return spec, refscale, refmean
 
 def covar(spec, checkmean = False): ##DONE
     """
