@@ -54,6 +54,27 @@ function gspice_unit_tests()
     if abs(diff) > 1E-10 throw("Failed") end
 
 
+    # -------- test djs_maskinterp()
+
+    mymask = [0.0  1.0  0.0  0.0  0.0  0.0;
+            1.0  0.0  0.0  0.0  0.0  0.0;
+            0.0  0.0  0.0  0.0  0.0  0.0]
+
+    yval = [4.0  15.0   6.0  17.0   8.0  19.0;
+            5.0  16.0   7.0  18.0   9.0  20.0;
+            8.0  19.0  10.0  21.0  12.0  23.0]
+    interp0 = djs_maskinterp(yval,mymask,axis=0,constant=true)
+    interp0_correct = [4.0   5.0   6.0  17.0   8.0  19.0;
+                       16.0  16.0   7.0  18.0   9.0  20.0;
+                       8.0  19.0  10.0  21.0  12.0  23.0]
+    if interp0 != interp0_correct throw("Failed") end
+
+    interp1 = djs_maskinterp(yval,mymask,axis=1,constant=true)
+    interp1_correct = [4.0  16.0   6.0  17.0   8.0  19.0;
+                       6.0  16.0   7.0  18.0   9.0  20.0;
+                       8.0  19.0  10.0  21.0  12.0  23.0]
+    if interp1 != interp1_correct throw("Failed") end
+
     # -------- test gspice_standard_scale()
     Dvec, refscale, refmean = gspice_standard_scale(spec, ivar, mask)
     diff = (std(Dvec)/15.4904531385571)-1
