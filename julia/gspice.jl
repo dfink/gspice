@@ -35,7 +35,7 @@ Parameters
 yval : :class:`numpy.ndarray`
     The input values.
 mask : :class:`numpy.ndarray`
-    The mask.
+    The mask (0=good, 1=bad)
 xval : :class:`numpy.ndarray`, optional
     If set, use these x values, otherwise use an array.
 const : :class:`bool`, optional
@@ -88,7 +88,7 @@ Parameters
 yval : :class:`numpy.ndarray`
     The input values
 mask : :class:`numpy.ndarray`
-    The mask
+    The mask (0=good, 1=bad)
 xval : :class:`numpy.ndarray`, optional
     If set, use these x values, otherwise use an array
 axis : :class:`int`, optional
