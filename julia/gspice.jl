@@ -229,7 +229,10 @@ function gspice_covar(spec::Array{Float64,2}; checkmean=false)
 
     # -------- compute covariance
     cov = (spec0'*spec0)./(Nspec-1)
-
+    if !issymmetric(cov)
+        cov .+= cov'
+        cov ./=2
+    end
     return cov, refmean
 end
 
