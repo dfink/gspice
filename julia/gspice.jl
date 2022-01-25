@@ -225,11 +225,17 @@ function gspice_covar(spec::Array{Float64,2}; checkmean=false)
     if checkmean
         mnd = sum(spec0, dims=1) ./ Nspec
         println("Min, max, mean ", extrema(mnd), std(mnd))
+        flush(stdout)
     end
 
     # -------- compute covariance
     cov = (spec0'*spec0)./(Nspec-1)
-
+    if !issymmetric(cov)
+        println("Warning: Had to symmetrize the matrix!")
+        flush(stdout)
+        cov .+= cov'
+        cov ./=2
+    end
     return cov, refmean
 end
 
@@ -265,7 +271,7 @@ function gspice_submatrix_inv(M, Minv, imask; bruteforce=false)
     # -------- brute force option, for testing
     if bruteforce
         k    = findall(imask)
-        Ainv = inv(cholesky(M[k, k]))
+        Ainv = inv(cholesky(Symmetric(M[k, k])))
         return Ainv
     end
 
@@ -276,6 +282,7 @@ function gspice_submatrix_inv(M, Minv, imask; bruteforce=false)
     # -------- if there is nothing to do, return early
     if nr==0
       println("imask does not remove any rows/columns...")
+      flush(stdout)
       return Minv
     end
 
@@ -342,7 +349,7 @@ function gspice_submatrix_inv_mult(M, Minv, imask, Y, MinvY; irange=nothing, pad
     # -------- brute force option (Slow - use only for testing)
     if bruteforce
         k     = findall(imask)
-        Ainv  = inv(cholesky(M[k, k]))
+        Ainv  = inv(cholesky(Symmetric(M[k, k])))
         Ainvy = Ainv * Y[k, :]
         return Ainvy
     end
@@ -431,7 +438,7 @@ function gspice_gaussian_estimate(icond, ipred, covmat, Dvec, covinv; bruteforce
         cov_kstarkstar = covmat[kstar, kstar]
 
         # -------- Choleksy inversion
-        icov_kk = inv(cholesky(cov_kk))
+        icov_kk = inv(cholesky(Symmetric(cov_kk)))
 
         # -------- compute the prediction covariance (See RW, Chap. 2)
         predcovar = cov_kstarkstar - (cov_kkstar*(icov_kk*cov_kstark))
@@ -522,7 +529,7 @@ function gspice_gp_interp(Dvec, covmat; irange=nothing, nguard=20, bruteforce=fa
     t0 = now()
 
     # -------- pre-compute inverse covariance
-    covinv = inv(cholesky(covmat))
+    covinv = inv(cholesky(Symmetric(covmat)))
 
     # -------- loop over spectral pixels
     for i=i1:i2
@@ -544,7 +551,10 @@ function gspice_gp_interp(Dvec, covmat; irange=nothing, nguard=20, bruteforce=fa
         end
         predvar[:, kstar.-(i1-1)] .= diag(predcovar)
 
-        if mod(i,100)==0 println(i, "  ",(now()-t0).value/1000.0, " sec") end
+        if mod(i,100)==0
+            println(i, "  ",(now()-t0).value/1000.0, " sec")
+            flush(stdout)
+        end
     end
 
     if ~bruteforce pred = Dvec*predoverD end
@@ -639,10 +649,12 @@ function gspice_covar_iter_mask(flux, ivar, mask; nsigma=[20, 8, 6], maxbadpix=6
     thismask = false
     for iter = 1:length(nsigma)
         println("=========================  Pass ", iter, ",   cut at Nsigma = ", nsigma[iter])
+        flush(stdout)
         thismask = chimask .| (mask[wmask,:] .!= 0)
         chimask = gspice_chimask(flux[wmask,:], ivar[wmask,:], thismask, nsigma[iter])
         println("mean chimask: ", mean(chimask))
         println("Time: ", (now()-t0).value/1000, " sec")
+        flush(stdout)
     end
 
   finalmask = trues(nspec, npix)    # start from original mask, overwrite mask for good spectra
