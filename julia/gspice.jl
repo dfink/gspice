@@ -551,7 +551,10 @@ function gspice_gp_interp(Dvec, covmat; irange=nothing, nguard=20, bruteforce=fa
         end
         predvar[:, kstar.-(i1-1)] .= diag(predcovar)
 
-        if mod(i,100)==0 println(i, "  ",(now()-t0).value/1000.0, " sec") end
+        if mod(i,100)==0
+            println(i, "  ",(now()-t0).value/1000.0, " sec")
+            flush(stdout)
+        end
     end
 
     if ~bruteforce pred = Dvec*predoverD end
