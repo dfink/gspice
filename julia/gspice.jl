@@ -526,7 +526,7 @@ function gspice_gp_interp(Dvec, covmat; irange=nothing, nguard=20, bruteforce=fa
     t0 = now()
 
     # -------- pre-compute inverse covariance
-    covinv = inv(cholesky(covmat))
+    covinv = inv(cholesky(Symmetric(covmat)))
 
     # -------- loop over spectral pixels
     for i=i1:i2
@@ -590,7 +590,6 @@ function gspice_chimask(flux, ivar, mask, nsigma)
 
     # -------- obtain the empirical covariance for this Dvec
     covmat, __ = gspice_covar(Dvec)
-    return covmat
 
     # -------- compute GSPICE predicted mean and variance
     pred, predvar = gspice_gp_interp(Dvec, covmat, nguard=20)
