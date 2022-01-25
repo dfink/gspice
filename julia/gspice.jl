@@ -230,6 +230,7 @@ function gspice_covar(spec::Array{Float64,2}; checkmean=false)
     # -------- compute covariance
     cov = (spec0'*spec0)./(Nspec-1)
     if !issymmetric(cov)
+        println("Warning: Had to symmetrize the matrix!")
         cov .+= cov'
         cov ./=2
     end
@@ -589,6 +590,7 @@ function gspice_chimask(flux, ivar, mask, nsigma)
 
     # -------- obtain the empirical covariance for this Dvec
     covmat, __ = gspice_covar(Dvec)
+    return covmat
 
     # -------- compute GSPICE predicted mean and variance
     pred, predvar = gspice_gp_interp(Dvec, covmat, nguard=20)
