@@ -51,7 +51,7 @@ def maskinterp(yval, mask, axis):
 
     sh_yval = yval.shape
     sh_mask = mask.shape
-
+    
     assert(len(sh_yval) == 2)
     assert(len(sh_mask) == 2)
 
