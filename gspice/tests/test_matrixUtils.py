@@ -137,7 +137,7 @@ class TestSubmatrixInvMult(unittest.TestCase):
                                            pad = False, 
                                            bruteforce=False)
         np.testing.assert_allclose(actual = test_pad[k, :], 
-                                   desired = test_no_pad,
+                                   desired = 0.,
                                    atol = atol)
 
 if __name__ == '__main__':

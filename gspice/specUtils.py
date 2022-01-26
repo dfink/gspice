@@ -30,9 +30,9 @@ def standard_scale(spec, ivar, mask = None):
     meanivar = np.sum(ivar * wt, axis = 1)/np.sum(wt, axis = 1)
     refscale = np.sqrt(meanivar)
 
-    spec *= refscale[:, np.newaxis] #rescale data as roughly data/sigma
+    spec = spec * refscale[:, np.newaxis] #rescale data as roughly data/sigma
     refmean = spec.mean(axis = 0)
-    spec -= refmean.reshape(1, -1) 
+    spec = spec - refmean.reshape(1, -1) 
 
     return spec, refscale, refmean
 
