@@ -53,10 +53,8 @@ def covar(spec, checkmean = False): ##DONE
     #check data type
     assert spec.dtype == 'float64', "spec.dtype must be float64"
 
-    #print(f'spec std: {spec.std(ddof = 1)}')
     #make columns of Dmask mean 0 for covariance computation
     refmean = spec.mean(axis = 0)
-    #print(f'refmean std: {refmean.std(ddof = 1)}')
     spec = spec - refmean.reshape(1, -1) 
 
     #verify that mean subtraction worked
@@ -66,7 +64,6 @@ def covar(spec, checkmean = False): ##DONE
     
     #compute covariance
     cov = (spec.T @ spec)/(nspec - 1)
-    #print(refmean.mean())
     return cov, refmean 
 
 from scipy.ndimage import binary_dilation as dilate

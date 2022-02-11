@@ -28,7 +28,7 @@ class TestStandardScale(unittest.TestCase):
                                    desired = expected_output, 
                                    atol = atol, rtol = rtol)
 
-"""class TestCovar(unittest.TestCase):
+class TestCovar(unittest.TestCase):
     def test_data(self):
         naive_cov, _ = covar(spec, checkmean=True)
         test_output = np.mean(naive_cov)
@@ -40,7 +40,7 @@ class TestStandardScale(unittest.TestCase):
 
 
 
-class TestGaussianEstimate(unittest.TestCase):
+"""class TestGaussianEstimate(unittest.TestCase):
     #arbitrary masking
     imask = np.ones(cov.shape[0])
     imask[11:51] = 0
