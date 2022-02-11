@@ -143,7 +143,7 @@ def covar_iter_mask(flux, ivar, mask, nsigma = np.array([20, 8, 6]), maxbadpix =
     finalmask = np.ones((nspec, npix))
     finalmask[wmask] = np.logical_or(thismask, chimask)
 
-    spec = standard_scale(flux=flux[wmask], ivar= ivar[wmask], mask=finalmask[wmask])
+    spec, _, _ = standard_scale(spec=flux[wmask], ivar= ivar[wmask], mask=finalmask[wmask])
     cov, _ = covar(spec)
 
     return cov, finalmask
@@ -276,7 +276,8 @@ def gp_interp(spec, cov, nguard = 20, irange = None, bruteforce = False):
     
     #shape of input spectra array
     nspec, npix = spec.shape
-
+    #print('tst ', nspec)
+    #print('tst ', npix)
     #check proper dimensionality
     assert cov.shape[0] == cov.shape[1], "covariance must be square matrix."
     assert npix == cov.shape[0], "spectra and covariance have incompatible dimensions."
@@ -289,23 +290,31 @@ def gp_interp(spec, cov, nguard = 20, irange = None, bruteforce = False):
     else:
         i0 = 0
         i1 = npix - 1
-
+    #print('tst ', i0)
+    #print('tst ', i1)
+    
     #allocate output arrays
     szpred = i1 - i0 + 1
+    #print('tst ', szpred) 
     predvar = np.zeros((nspec, szpred))
+    #print('tst ', predvar)
+    #print('tst ', predvar.shape) 
     
     if(bruteforce):
         pred = np.zeros((nspec, szpred))
     else:
         predoverD = np.zeros((npix, szpred))
+        # print('tst ', predoverD)
+        # print('tst ', predoverD.shape) 
 
     t0 = time() #start timing
 
     #pre-compute inverse covariance
     covinv = cholesky_inv(cov)
-    
+    #print('tst ', covinv.std(ddof = 1))
+
     #loop over pixels
-    for i in range(i0, i0 + 1):
+    for i in range(i0, i1 + 1):
         #ipred == 1 for pixels to be predicted
         ipred = np.zeros(npix)
         #print(ipred)
@@ -317,38 +326,45 @@ def gp_interp(spec, cov, nguard = 20, irange = None, bruteforce = False):
         #condition on reference pixels specified by icond
         icond = np.ones(npix)
         #print(icond)
-        #print(icond.shape)
+        #print(icond.shape)  
         j0 = np.max([0, i - nguard + 1])
         j1 = np.min([i + nguard + 1, npix])
         #print(j0)
         #print(j1)
         icond[j0:j1] = 0
-        #print(icond)
+        #print(np.where(icond==0)) 
 
         #print(icond)
         #print(np.where(icond == 0))
         #print(len(np.where(icond == 0)[0]))
 
+        #print('tst ', cov.std(ddof =1))
         #print(covinv.std(ddof = 1))
-        predcovar, predoverD0, predkstar, kstar = gaussian_estimate(icond=icond, ipred=ipred, cov=cov,
-                                                 spec=spec, covinv=covinv, bruteforce = bruteforce)
+        predoverD0, predcovar, predkstar, kstar = gaussian_estimate(icond=icond, ipred=ipred, cov=cov,
+                                                 Dvec=spec, covinv=covinv, bruteforce = bruteforce)
         #kstar = i
         #print(f'predoverD0 : {predoverD0.std(ddof = 1)}')
-        #print(f'predcoar: {predcovar.std(ddof = 1)}')
-        print(f'predcoar: {predcovar}')
-        print(f'predcoar: {predcovar.shape}')
+        #print(f'predcovar: {predcovar[0][0]}')
+        #print(f'predcoar: {predcovar}')
+        #print(f'predcoar: {predcovar.shape}') 
 
         if(bruteforce):
             pred[:, kstar - i0] = predkstar
         else:
             predoverD[:, kstar - i0] = predoverD0#[:,0] #?? #comparison with IDL and logic + diemnsinality of predoverD
+            #print(predoverD.shape)
+            #print(predoverD.std(ddof = 1))
         #j = np.arange(predcovar.ndim) #?? #this is getting dimensions?
         predvar[:, kstar - i0] = np.diag(predcovar)#[0,0] #?? #what is happening?
+        #print(predvar.shape)
+        #print(predvar.std(ddof =1))  ##GOOD UPTO HERE##
 
         if ((i % 100) == 0):
             print(f"Iteration # {i} finished at {time() - t0} seconds.")
 
     pred = spec.dot(predoverD)
+    #print(pred.std(ddof = 1))
+    #print(predvar.std(ddof = 1))
     print(f"Matrix multiplication time: {time() - t0}")
 
     return pred, predvar 
