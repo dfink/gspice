@@ -24,18 +24,17 @@ def standard_scale(spec, ivar, mask = None):
         pixmask = np.where(mask == 0, 0, 1) #scale mask to 0 or 1
 
     #interpolate over masked pixels in the spectral direction
-    spec = djs_maskinterp(yval = spec, mask = pixmask, axis = 0)#, const = ).astype(np.float64) #dependent on pydl ##/const??
+    Dvec = djs_maskinterp(yval = spec, mask = pixmask, axis = 0)#, const = ).astype(np.float64) #dependent on pydl ##/const??
 
     #renormalize each spectra by sqrt(mean(ivar))
     wt = 1 - pixmask # set weight such that only good pixels contribute 
     meanivar = np.sum(ivar * wt, axis = 1)/np.sum(wt, axis = 1)
     refscale = np.sqrt(meanivar)
-
-    spec = spec * refscale[:, np.newaxis] #rescale data as roughly data/sigma
-    refmean = spec.mean(axis = 0)
-    spec = spec - refmean.reshape(1, -1) 
-
-    return spec, refscale, refmean
+    Dvec = Dvec * refscale[:, np.newaxis] #rescale data as roughly data/sigma
+    refmean = Dvec.mean(axis = 0)
+    Dvec = Dvec - refmean.reshape(1, -1) 
+    
+    return Dvec, refscale, refmean
 
 def covar(spec, checkmean = False): ##DONE
     """
@@ -54,8 +53,10 @@ def covar(spec, checkmean = False): ##DONE
     #check data type
     assert spec.dtype == 'float64', "spec.dtype must be float64"
 
+    #print(f'spec std: {spec.std(ddof = 1)}')
     #make columns of Dmask mean 0 for covariance computation
     refmean = spec.mean(axis = 0)
+    #print(f'refmean std: {refmean.std(ddof = 1)}')
     spec = spec - refmean.reshape(1, -1) 
 
     #verify that mean subtraction worked
@@ -65,7 +66,7 @@ def covar(spec, checkmean = False): ##DONE
     
     #compute covariance
     cov = (spec.T @ spec)/(nspec - 1)
-
+    #print(refmean.mean())
     return cov, refmean 
 
 from scipy.ndimage import binary_dilation as dilate
@@ -96,7 +97,8 @@ def get_chimask (flux, ivar, mask, nsigma): ##DONE
 
     #clip at nsigma, dilate mask by 1 pixel
     flag = np.abs(chi) >= nsigma
-    chimask = dilate(flag, [1, 1, 1]).astype(flag.dtype)
+    print(f'flag : {flag.shape}')
+    chimask = dilate(flag, np.array([[1, 1, 1]])).astype(flag.dtype)
     
     return chimask 
 
@@ -227,7 +229,7 @@ def gaussian_estimate(icond, ipred, cov, spec, covinv, bruteforce = False):
         return predoverD, predcovar, predkstar, kstar
 
 from time import time
-def gp_interp(spec, cov, nguard = 20, rang = None):
+def gp_interp(spec, cov, nguard = 20, irange = None, bruteforce = False):
     """
     Computes pixelwise conditional prediction for each pixel (GSPICE routine)
 
@@ -235,15 +237,13 @@ def gp_interp(spec, cov, nguard = 20, rang = None):
             spec (np.ndarray) nspec X npix : spectra matrix 
             cov (np.ndarray) npix X npix : pixel covariance matrix
             nguard (int) : number of guard pixels around GCE pixel(s)
-            rang (np.array) 2 X 1 : 2 element array specifying range for prediction pixels
+            irange (np.array) 2 X 1 : 2 element array specifying range for prediction pixels
         
         Returns:
             pred (np.ndarray) nspec X npix : GSPICE predicted spectra mean
             predcovar (np.ndarray) npix X npix : GSPICE predicted posterior spectra variance
     """
     
-    t0 = time ()
-
     #shape of input spectra array
     nspec, npix = spec.shape
 
@@ -252,24 +252,29 @@ def gp_interp(spec, cov, nguard = 20, rang = None):
     assert npix == cov.shape[0], "spectra and covariance have incompatible dimensions."
     
     #range of spectral bins to operate on
-    if rang is not None: 
-        assert rang.size != 2, "Range must have 2 elements."
-        i0 = rang[0]
-        i1 = rang[1]
+    if irange is not None: 
+        assert irange.size != 2, "Range must have 2 elements."
+        i0 = irange[0]
+        i1 = irange[1]
     else:
         i0 = 0
-        i1 = npix
+        i1 = npix - 1
 
     #allocate output arrays
-    szpred = i1 - i0 
+    szpred = i1 - i0 + 1
     predvar = np.zeros((nspec, szpred))
-    predoverD = np.zeros((npix, szpred))
+    if(bruteforce):
+        pred = np.zeros((nspec, szpred))
+    else:
+        predoverD = np.zeros((npix, szpred))
+
+    t0 = time() #start timing
 
     #pre-compute inverse covariance
     covinv = cholesky_inv(cov)
 
     #loop over pixels
-    for i in range(i0, i1):
+    for i in range(i0, i1 + 1):
         #ipred == 1 for pixels to be predicted
         ipred = np.zeros(npix)
         ipred[i] = 1
@@ -280,17 +285,19 @@ def gp_interp(spec, cov, nguard = 20, rang = None):
         j1 = np.min([i + nguard + 1, npix])
         icond[j0:j1] = 0
 
-        predcovar, predoverD0 = gaussian_estimate(icond=icond, ipred=ipred, cov=cov,
-                                                 spec=spec, covinv=covinv)
-        kstar = i
+        predcovar, predoverD0, predkstar, kstar = gaussian_estimate(icond=icond, ipred=ipred, cov=cov,
+                                                 spec=spec, covinv=covinv, bruteforce = bruteforce)
+        #kstar = i
 
-
-        predoverD[:, kstar - i0] = predoverD0[:,0] #?? #comparison with IDL and logic + diemnsinality of predoverD
+        if(bruteforce):
+            pred[:, kstar - i0] = predkstar
+        else:
+            predoverD[:, kstar - i0] = predoverD0#[:,0] #?? #comparison with IDL and logic + diemnsinality of predoverD
         #j = np.arange(predcovar.ndim) #?? #this is getting dimensions?
-        predvar[:, kstar - i0] = predcovar[0,0] #?? #what is happening?
+        predvar[:, kstar - i0] = np.diag(predcovar)#[0,0] #?? #what is happening?
 
         if ((i % 100) == 0):
-            print(f"Iteration # {i} finished at {time()} seconds.")
+            print(f"Iteration # {i} finished at {time() - t0} seconds.")
 
     pred = spec.dot(predoverD)
     print(f"Matrix multiplication time: {time() - t0}")
