@@ -148,7 +148,7 @@ def covar_iter_mask(flux, ivar, mask, nsigma = np.array([20, 8, 6]), maxbadpix =
 
     return cov, finalmask
 
-def gaussian_estimate(icond, ipred, cov, spec, covinv, bruteforce = False):
+def gaussian_estimate(icond, ipred, cov, Dvec, covinv, bruteforce = False):
     """
     Computes Gaussian conditional estimate
 
@@ -170,17 +170,27 @@ def gaussian_estimate(icond, ipred, cov, spec, covinv, bruteforce = False):
     """
 
     #single = len()
-    nspec, npix = spec.shape
+    nspec, npix = Dvec.shape
 
     k = np.where(icond)[0] #where is good data
     nk = len(k) #number of good pixels
-
+    #print('k :', k[:20])
+    #print('nk: ', nk)
     kstar = np.where(ipred)[0]
     nkstar = len(kstar) #number of pixels to predict on
-
+    #print('kstar: ', kstar)
+    #print(f'nkstar : {nkstar}')
+    #print('cov ', cov.std(ddof = 1))
     cov_kkstar = cov[np.ix_(kstar, k)]
+    #print('cov_kkstar: ', cov_kkstar.shape)
+    #print(f'cov_kkstar 9: {cov_kkstar[0][9]} 10: {cov_kkstar[0][10]}')
     cov_kstark     = cov_kkstar.T
+    #print('cov_kstark: ', cov_kstark.shape)
+    #print(f'cov_kstark 9: {cov_kstark[9][0]} 10: {cov_kstark[10][0]}')
     cov_kstarkstar = cov[np.ix_(kstar, kstar)]
+    #print(f'covk*k*: {cov_kstarkstar.shape}')
+    #print(f'k*k*: {cov_kstarkstar}')
+
 
     if bruteforce:
         cov_kk = cov[np.ix_(k, k)]
@@ -198,31 +208,54 @@ def gaussian_estimate(icond, ipred, cov, spec, covinv, bruteforce = False):
         tmp = cov_kkstar @ icov_kk
         del icov_kk 
 
-        if nkstar == 1: #?? why is this necessary?
+        if (nkstar == 1): #?? why is this necessary?
             tmp2 = np.zeros(npix)
             tmp2[k] = tmp 
-            predkstar = spec @ tmp2 
+            predkstar = Dvec @ tmp2 
         else:
-            predkstar = spec[:, k] @ tmp.T #this is memory intensive
+            predkstar = Dvec[:, k] @ tmp.T #this is memory intensive
             print("Using memory intensive code...")
 
         return predcovar, predkstar, kstar #?? return values are different. deprecate bruteforce?
     else:
         #compute icov_kk (dot) cov_kstark using GSPICE
         Y = cov[:, kstar]
+        #print(Y.shape)
+        #print(Y[25][0])
+        
+        #print('tst ',covinv.std(ddof = 1))
         Minvy = covinv @ Y
-
+        #print('tst ', Minvy.shape)
+        #print('tst ', Minvy.std(ddof = 1))
+        
         #Ainvy is icov_kk (dot) cov_kstarK
         #Ainvy0 is Ainvy zero-padded
+        #print(cov.std(ddof = 1))
+        #print(covinv.std(ddof = 1))
+        #print(icond.std(ddof = 1))
+        #print(Y.std(ddof = 1))
+        #print(Minvy.std(ddof = 1))
         Ainvy0 = submatrix_inv_mult(M=cov, Minv=covinv, imask=icond, Y = Y,
                                     MinvY=Minvy, pad = True)
-
-        predkstar = spec.dot(Ainvy0) #takes time; optional
+        #print('tst ', Ainvy0.shape)
+        #print('tst ', Ainvy0.std(ddof = 1))
+        #print('tst ', Ainvy0[4][0])
+        #print("aaaaaa")
+        predkstar = Dvec @Ainvy0 #takes time; optional
+        #print('tst ', predkstar.shape)
+        #print('tst predkstar', predkstar.std(ddof =1))
         predoverD = Ainvy0
+        # print('tst ', predoverD.shape)
+        # print('tst ', predoverD.std(ddof = 1))  ##--GOOD UP TO HERE--##
 
         #compute prediction covariance (See RW, Ch. 2)
-        predcovar = cov_kstarkstar - Y.T @ Ainvy0
-
+        # print('tst ',Ainvy0.shape)
+        # print('tst ',(Y.T).shape)
+        # print('tst ',cov_kstarkstar.shape)
+        # print('tst ', (Y.T @ Ainvy0)[0][0]) #precision up to 1e-8 with Julia
+        # print('tst ', cov_kstarkstar)
+        predcovar = cov_kstarkstar - Y.T @ Ainvy0 #precision up to 1e-8 with Julia
+        #print('tst ', predcovar[0][0])
         return predoverD, predcovar, predkstar, kstar
 
 from time import time
@@ -260,6 +293,7 @@ def gp_interp(spec, cov, nguard = 20, irange = None, bruteforce = False):
     #allocate output arrays
     szpred = i1 - i0 + 1
     predvar = np.zeros((nspec, szpred))
+    
     if(bruteforce):
         pred = np.zeros((nspec, szpred))
     else:
@@ -269,22 +303,40 @@ def gp_interp(spec, cov, nguard = 20, irange = None, bruteforce = False):
 
     #pre-compute inverse covariance
     covinv = cholesky_inv(cov)
-
+    
     #loop over pixels
-    for i in range(i0, i1 + 1):
+    for i in range(i0, i0 + 1):
         #ipred == 1 for pixels to be predicted
         ipred = np.zeros(npix)
+        #print(ipred)
+        #print(ipred.shape)
         ipred[i] = 1
+        #print(ipred)
+        #print(ipred.shape)
 
         #condition on reference pixels specified by icond
         icond = np.ones(npix)
-        j0 = np.max([0, i - nguard])
+        #print(icond)
+        #print(icond.shape)
+        j0 = np.max([0, i - nguard + 1])
         j1 = np.min([i + nguard + 1, npix])
+        #print(j0)
+        #print(j1)
         icond[j0:j1] = 0
+        #print(icond)
 
+        #print(icond)
+        #print(np.where(icond == 0))
+        #print(len(np.where(icond == 0)[0]))
+
+        #print(covinv.std(ddof = 1))
         predcovar, predoverD0, predkstar, kstar = gaussian_estimate(icond=icond, ipred=ipred, cov=cov,
                                                  spec=spec, covinv=covinv, bruteforce = bruteforce)
         #kstar = i
+        #print(f'predoverD0 : {predoverD0.std(ddof = 1)}')
+        #print(f'predcoar: {predcovar.std(ddof = 1)}')
+        print(f'predcoar: {predcovar}')
+        print(f'predcoar: {predcovar.shape}')
 
         if(bruteforce):
             pred[:, kstar - i0] = predkstar
