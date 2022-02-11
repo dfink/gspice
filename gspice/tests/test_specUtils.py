@@ -40,7 +40,7 @@ class TestCovar(unittest.TestCase):
 
 
 
-"""class TestGaussianEstimate(unittest.TestCase):
+class TestGaussianEstimate(unittest.TestCase):
     #arbitrary masking
     imask = np.ones(cov.shape[0])
     imask[11:51] = 0
@@ -58,7 +58,7 @@ class TestCovar(unittest.TestCase):
 
         np.testing.assert_allclose(actual = test_output,
                                    desired = expected_output,
-                                   atol = atol)
+                                   atol = atol, rtol = rtol)
 
     def test_predcovar(self):
         test_output = self.predcovar
@@ -66,7 +66,7 @@ class TestCovar(unittest.TestCase):
 
         np.testing.assert_allclose(actual = test_output,
                                    desired = expected_output,
-                                   atol = atol)
+                                   atol = atol, rtol = rtol)
     
     def test_bruteforce(self):
         test_predcovar, test_predkstar, _  = gaussian_estimate(self.icond,
@@ -79,17 +79,7 @@ class TestCovar(unittest.TestCase):
 
         np.testing.assert_allclose(actual = test_predcovar,
                                    desired = self.predcovar,
-                                   atol = atol)
-
-class TestGetChimask(unittest.TestCase):
-    def test_data(self):
-        chimask = get_chimask(spec, ivar, mask != 0, 20)
-        test_output = np.sum(chimask)
-        expected_output = 444
-
-        np.testing.assert_allclose(actual = test_output,
-                                   desired = expected_output,
-                                  atol = atol)"""
+                                   atol = atol, rtol = rtol)
 
 """class TestGPInterp(unittest.TestCase):
 
@@ -110,6 +100,16 @@ class TestGetChimask(unittest.TestCase):
         np.testing.assert_allclose(actual = test_output, 
                                    desired = expected_output,
                                    atol = atol)"""
+
+"""class TestGetChimask(unittest.TestCase):
+    def test_data(self):
+        chimask = get_chimask(spec, ivar, mask != 0, 20)
+        test_output = np.sum(chimask)
+        expected_output = 444
+
+        np.testing.assert_allclose(actual = test_output,
+                                   desired = expected_output,
+                                  atol = atol)"""
             
 if __name__ == '__main__':
      unittest.main()
