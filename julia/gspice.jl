@@ -336,7 +336,6 @@ function gspice_submatrix_inv_mult(M, Minv, imask, Y, MinvY; irange=nothing, pad
     #
     #     A^{-1} Y = P Y - Q U^{-1} Q^T Y
     #
-    #   Y is assumed to be zero-padded, i.e. Y[where(~imask)]=0
 
     # -------- catch the case where Y is a row vector
     @assert size(Y,1) !== 1     # 'Y must not be a row vector'
