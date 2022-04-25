@@ -1,7 +1,9 @@
 import numpy as np
-from .djs_maskinterp import maskinterp as djs_maskinterp
+from .djs_maskinterp import maskinterp
 #from .gspiceMain import gp_interp
 from .matrixUtils import cholesky_inv, submatrix_inv_mult
+
+from time import time 
 
 def standard_scale(spec, ivar, mask = None):
     """
@@ -18,14 +20,16 @@ def standard_scale(spec, ivar, mask = None):
     """
 
     #if no mask is passed, use ivar == 0 as mask (setting infinity error as bad pixel)
+    tt = time()
     if mask is None:
         pixmask = (ivar == 0)
     else:
         pixmask = np.where(mask == 0, 0, 1) #scale mask to 0 or 1
-
+    print(f"time: {time()-tt}")
+    
     #interpolate over masked pixels in the spectral direction
-    Dvec = djs_maskinterp(yval = spec, mask = pixmask, axis = 0)#, const = ).astype(np.float64) #dependent on pydl ##/const??
-
+    Dvec = maskinterp(yval = spec, mask = pixmask, axis = 0)#, const = ).astype(np.float64) #dependent on pydl ##/const??
+    
     #renormalize each spectra by sqrt(mean(ivar))
     wt = 1 - pixmask # set weight such that only good pixels contribute 
     meanivar = np.sum(ivar * wt, axis = 1)/np.sum(wt, axis = 1)
@@ -60,7 +64,7 @@ def covar(spec, checkmean = False): ##DONE
     #verify that mean subtraction worked
     if checkmean is True:
         mnd = spec.mean(axis = 0)
-        print(f"min = {mnd.min()}, max = {mnd.max()}, std = {mnd.std()}")
+        print(f"min = {mnd.min()}, max = {mnd.max()}, std = {mnd.std(ddof = 1)}")
     
     #compute covariance
     cov = (spec.T @ spec)/(nspec - 1)
@@ -100,54 +104,6 @@ def get_chimask (flux, ivar, mask, nsigma): ##DONE
     return chimask 
 
 from time import time
-def covar_iter_mask(flux, ivar, mask, nsigma = np.array([20, 8, 6]), maxbadpix = 64):
-    """
-    Compute spectral covariance with iterative masking using GSPICE
-
-        Parameters:
-            flux (np.ndarray) nspec X npix : de-redshifted flux array
-            ivar (np.ndarray) nspec X npix : de-redshifted ivar array
-            mask (np.ndarray) nspec X npix : de-redshifted mask array, 0 == good;
-                                             if not set, set to ivar == 0
-            nsigma (np.array)              : array of nsigma clipping values to be passed to chimask
-            maxbadpix (int)                : reject spectra with more than maxbadpix
-                                             pixels masked in input mask      
-
-        Returns:
-            cov (np.ndarray) npix X npix : covariance of pixels
-            finalmask (np.ndarray) nspec X npix : final mask after iteration 
-    """
-
-    t0 = time()
-
-    nspec, npix = flux.shape
-
-    #reject spectra with too many bad pixels
-    nbadpix = np.sum(mask != 0, axis = 1) #number of bad pixels for each spectra
-    objmask = nbadpix <= maxbadpix #flat for objects to be discarded (too many bad pix)
-    wmask = np.where(objmask) #index of good spectra
-    nmask = len(wmask) #number of good spectra
-
-    assert nmask <= npix, "Not enough good spectra"
-
-    chimask = np.zeros(mask[wmask].shape)
-    for sigma in nsigma: #loop over iteratively masking
-        print(f"Pass nsigma = {sigma}")
-        thismask = np.logical_or(chimask, (mask[wmask] != 0))
-        chimask = get_chimask(flux = flux[wmask], ivar = ivar[wmask], mask = thismask, 
-                            nsigma = sigma)
-        print(f"Mean chimask = {np.mean(chimask)}")
-        print(f"Time: {time()- t0} seconds.")
-        t0 = time()
-
-    finalmask = np.ones((nspec, npix))
-    finalmask[wmask] = np.logical_or(thismask, chimask)
-
-    spec, _, _ = standard_scale(spec=flux[wmask], ivar= ivar[wmask], mask=finalmask[wmask])
-    cov, _ = covar(spec)
-
-    return cov, finalmask
-
 def gaussian_estimate(icond, ipred, cov, Dvec, covinv, bruteforce = False):
     """
     Computes Gaussian conditional estimate
@@ -307,7 +263,7 @@ def gp_interp(spec, cov, nguard = 20, irange = None, bruteforce = False):
         # print('tst ', predoverD)
         # print('tst ', predoverD.shape) 
 
-    t0 = time() #start timing
+    #t0 = time() #start timing
 
     #pre-compute inverse covariance
     covinv = cholesky_inv(cov)
@@ -315,6 +271,7 @@ def gp_interp(spec, cov, nguard = 20, irange = None, bruteforce = False):
 
     #loop over pixels
     for i in range(i0, i1 + 1):
+        t0 = time() #start timing
         #ipred == 1 for pixels to be predicted
         ipred = np.zeros(npix)
         #print(ipred)
@@ -368,3 +325,55 @@ def gp_interp(spec, cov, nguard = 20, irange = None, bruteforce = False):
     print(f"Matrix multiplication time: {time() - t0}")
 
     return pred, predvar 
+
+def covar_iter_mask(flux, ivar, mask, nsigma = np.array([20, 8, 6]), maxbadpix = 64):
+    """
+    Compute spectral covariance with iterative masking using GSPICE
+
+        Parameters:
+            flux (np.ndarray) nspec X npix : de-redshifted flux array
+            ivar (np.ndarray) nspec X npix : de-redshifted ivar array
+            mask (np.ndarray) nspec X npix : de-redshifted mask array, 0 == good;
+                                             if not set, set to ivar == 0
+            nsigma (np.array)              : array of nsigma clipping values to be passed to chimask
+            maxbadpix (int)                : reject spectra with more than maxbadpix
+                                             pixels masked in input mask      
+
+        Returns:
+            cov (np.ndarray) npix X npix : covariance of pixels
+            finalmask (np.ndarray) nspec X npix : final mask after iteration 
+    """
+
+    t0 = time()
+
+    nspec, npix = flux.shape
+
+    #reject spectra with too many bad pixels
+    nbadpix = np.sum(mask != 0, axis = 1) #number of bad pixels for each spectra
+    objmask = nbadpix <= maxbadpix #flat for objects to be discarded (too many bad pix)
+    wmask = np.where(objmask)[0] #index of good spectra
+    nmask = len(wmask) #number of good spectra
+
+    assert nmask >= npix, "Not enough good spectra"
+
+    chimask = np.zeros(mask[wmask].shape)
+    #thismask = np.logical_or(chimask, (mask[wmask] != 0))
+    
+    for sigma in nsigma: #loop over iteratively masking
+        print(f"Pass nsigma = {sigma}")
+        thismask = np.logical_or(chimask, (mask[wmask] != 0))
+        
+        chimask = get_chimask(flux = flux[wmask], ivar = ivar[wmask], mask = thismask, 
+                            nsigma = sigma)
+        print(f"Mean chimask = {np.mean(chimask)}")
+        #thismask = np.logical_or(chimask, thismask)
+        print(f"Time: {time()- t0} seconds.")
+        t0 = time()
+
+    finalmask = np.ones((nspec, npix))
+    finalmask[wmask] = np.logical_or(thismask, chimask)
+
+    spec, _, _ = standard_scale(spec=flux[wmask], ivar= ivar[wmask], mask=finalmask[wmask])
+    cov, _ = covar(spec)
+
+    return cov, finalmask
