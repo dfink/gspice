@@ -51,7 +51,7 @@ def maskinterp(yval, mask, axis):
 
     sh_yval = yval.shape
     sh_mask = mask.shape
-
+    
     assert(len(sh_yval) == 2)
     assert(len(sh_mask) == 2)
 
@@ -60,6 +60,7 @@ def maskinterp(yval, mask, axis):
     assert((axis == 0) or (axis == 1))
 
     wbad = (np.where(mask != 0))
+    ynew = np.copy(yval) #to avoid yval pointer getting changed and stupid bugs popping up in the process because Python changes global variables with pointers!!
 
     if axis == 0:
         # the y coord values of rows that need some interpolation
@@ -69,15 +70,15 @@ def maskinterp(yval, mask, axis):
         bad_stripe_indices = np.unique(wbad[1])
 
     if len(bad_stripe_indices) == 0:
-        return yval
+        return ynew
 
     for ind in bad_stripe_indices:
         if axis == 0:
-            yval[ind, :] = maskinterp1(yval[ind, :], mask[ind, :])
+            ynew[ind, :] = maskinterp1(ynew[ind, :], mask[ind, :])
         else:
-            yval[:, ind] = maskinterp1(yval[:, ind], mask[:, ind])
+            ynew[:, ind] = maskinterp1(ynew[:, ind], mask[:, ind])
 
-    return yval
+    return ynew
 
 def average_bilinear(yval, mask):
     int0 = maskinterp(yval, mask, 0)
