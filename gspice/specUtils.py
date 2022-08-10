@@ -284,7 +284,7 @@ def gp_interp(spec, cov, nguard = 20, irange = None, bruteforce = False):
         icond = np.ones(npix)
         #print(icond)
         #print(icond.shape)  
-        j0 = np.max([0, i - nguard + 1])
+        j0 = np.max([0, i - nguard])
         j1 = np.min([i + nguard + 1, npix])
         #print(j0)
         #print(j1)
