@@ -12,3 +12,4 @@ test
 gspice/tests/.ipynb_checkpoints
 gspice/notebooks/.ipynb_checkpoints
 gspice/notebooks/gspice.egg-info
+gspice/notebooks/dist
